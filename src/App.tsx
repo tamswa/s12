@@ -1,84 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
-  Shield, CheckCircle2, ChevronLeft, User, Briefcase, Globe,
-  Calendar, Loader2, Star, TrendingUp, Users, Award, MapPin, ArrowLeft,
-  Sparkles, X, AlertCircle, ExternalLink
+  Shield, CheckCircle2, ChevronLeft, Briefcase,
+  Star, TrendingUp, Users, Award, MapPin, ArrowLeft,
+  Sparkles, X, Loader2, Zap
 } from 'lucide-react'
-import { supabase } from './supabaseClient'
-import { jobs, nationalities } from './data'
+import { jobs } from './data'
 
 const CPA_OFFER_URL = 'https://fiodie.com/cl/b8ab799cdbe3f678'
 
-interface FormData {
-  fullName: string
-  profession: string
-  nationality: string
-  age: string
-  selectedJob: string
-}
-
 export default function App() {
   const [selectedJob, setSelectedJob] = useState<string>('')
-  const [showForm, setShowForm] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [formData, setFormData] = useState<FormData>({
-    fullName: '',
-    profession: '',
-    nationality: '',
-    age: '',
-    selectedJob: '',
-  })
+  const [redirecting, setRedirecting] = useState(false)
 
   const handleJobSelect = (jobId: string) => {
     setSelectedJob(jobId)
-    setFormData({ ...formData, selectedJob: jobId })
-    setShowForm(true)
     setTimeout(() => {
       document.getElementById('application-form')?.scrollIntoView({ behavior: 'smooth' })
     }, 100)
   }
 
-  const validateForm = () => {
-    if (!formData.fullName.trim()) return 'الرجاء إدخال الاسم الثلاثي'
-    if (!formData.profession.trim()) return 'الرجاء إدخال المهنة'
-    if (!formData.nationality) return 'الرجاء اختيار الجنسية'
-    if (!formData.age || parseInt(formData.age) < 18 || parseInt(formData.age) > 70)
-      return 'الرجاء إدخال سن صحيح (18 - 70)'
-    return ''
-  }
-
-  const handleSubmit = async () => {
-    const validationError = validateForm()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
-    setError('')
-    setLoading(true)
-
-    try {
-      await supabase.from('job_applications').insert({
-        full_name: formData.fullName,
-        profession: formData.profession,
-        nationality: formData.nationality,
-        age: parseInt(formData.age),
-        selected_job: formData.selectedJob,
-        phone_verified: true,
-      })
-    } catch {
-      // Continue to redirect even if DB save fails
-    }
-
+  const handleApply = () => {
+    setRedirecting(true)
     window.location.href = CPA_OFFER_URL
-  }
-
-  const resetForm = () => {
-    setShowForm(false)
-    setSelectedJob('')
-    setFormData({ fullName: '', profession: '', nationality: '', age: '', selectedJob: '' })
-    setError('')
-    document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' })
   }
 
   const selectedJobData = jobs.find((j) => j.id === selectedJob)
@@ -93,7 +36,7 @@ export default function App() {
               <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base sm:text-lg font-bold text-slate-800">وظائف السعودية</h1>
+              <h1 className="text-base sm:text-lg font-bold text-slate-800">وظائف شركات المراعي</h1>
               <p className="hidden sm:block text-xs text-slate-500">للمواطنين والمقيمين</p>
             </div>
           </div>
@@ -121,8 +64,8 @@ export default function App() {
                 أكثر من 500 وظيفة متاحة فوراً
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-slate-800 leading-tight mb-4 sm:mb-6">
-                فرص عمل في
-                <span className="bg-gradient-to-l from-emerald-600 to-teal-600 bg-clip-text text-transparent"> المملكة العربية السعودية</span>
+                وظائف شركات
+                <span className="bg-gradient-to-l from-emerald-600 to-teal-600 bg-clip-text text-transparent"> المراعي</span>
               </h1>
               <p className="text-base sm:text-lg text-slate-600 mb-6 sm:mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
                 وظائف متاحة للمواطنين السعوديين والمقيمين برواتب مجزية ومزايا متكاملة.
@@ -166,12 +109,12 @@ export default function App() {
               <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
                 <img
                   src="https://images.pexels.com/photos/3184465/photos/3184465.jpeg?auto=compress&cs=tinysrgb&w=800"
-                  alt="فرص عمل في السعودية"
+                  alt="وظائف شركات المراعي"
+                  loading="lazy"
                   className="w-full h-[300px] sm:h-[400px] object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent" />
               </div>
-              {/* Floating cards - hidden on small screens */}
               <div className="hidden sm:block absolute -bottom-6 -right-6 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3 animate-float">
                 <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-emerald-600" />
@@ -278,12 +221,11 @@ export default function App() {
         </div>
       </section>
 
-      {/* Application Form Section */}
-      {showForm && (
+      {/* Apply CTA Section */}
+      {selectedJob && (
         <section id="application-form" className="py-12 sm:py-16 bg-white">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
-              {/* Form Header */}
               <div className="bg-gradient-to-l from-emerald-600 to-teal-600 p-5 sm:p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
@@ -296,7 +238,7 @@ export default function App() {
                     )}
                   </div>
                   <button
-                    onClick={() => { setShowForm(false); setSelectedJob('') }}
+                    onClick={() => setSelectedJob('')}
                     className="p-2 hover:bg-white/20 rounded-lg transition-colors"
                   >
                     <X className="w-5 h-5" />
@@ -304,105 +246,39 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Form Body */}
               <div className="p-5 sm:p-8">
-                <div className="space-y-4 sm:space-y-5">
-                  {/* Full Name */}
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                      <User className="w-4 h-4 text-emerald-600" />
-                      الاسم الثلاثي
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      placeholder="مثال: محمد أحمد عبدالله"
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-slate-800"
-                    />
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Zap className="w-8 h-8 text-emerald-600" />
                   </div>
-
-                  {/* Profession */}
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                      <Briefcase className="w-4 h-4 text-emerald-600" />
-                      المهنة
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.profession}
-                      onChange={(e) => setFormData({ ...formData, profession: e.target.value })}
-                      placeholder="مثال: عامل نظافة، مندوب مبيعات..."
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-slate-800"
-                    />
-                  </div>
-
-                  {/* Nationality & Age */}
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                        <Globe className="w-4 h-4 text-emerald-600" />
-                        الجنسية
-                      </label>
-                      <select
-                        value={formData.nationality}
-                        onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-slate-800 bg-white"
-                      >
-                        <option value="">اختر الجنسية</option>
-                        {nationalities.map((nat) => (
-                          <option key={nat} value={nat}>{nat}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                        <Calendar className="w-4 h-4 text-emerald-600" />
-                        السن
-                      </label>
-                      <input
-                        type="number"
-                        min="18"
-                        max="70"
-                        value={formData.age}
-                        onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                        placeholder="مثال: 28"
-                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Error */}
-                  {error && (
-                    <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-sm animate-fade-in">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      {error}
-                    </div>
-                  )}
-
-                  {/* Submit */}
-                  <button
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    className="w-full py-3 sm:py-4 bg-gradient-to-l from-emerald-600 to-teal-600 text-white rounded-xl font-bold text-base sm:text-lg hover:shadow-xl hover:shadow-emerald-200 transition-all hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        جاري الإرسال...
-                      </>
-                    ) : (
-                      <>
-                        تأكيد التقديم
-                        <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </>
-                    )}
-                  </button>
-
-                  <p className="text-center text-xs text-slate-400">
-                    بالضغط على تأكيد، سيتم تحويلك لإكمال طلب التقديم
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-2">جاهز للتقديم؟</h3>
+                  <p className="text-sm text-slate-500 mb-6">
+                    اضغط على الزر أدناه لإكمال طلب التقديم على وظيفة
+                    {selectedJobData ? ` ${selectedJobData.title}` : ''}
                   </p>
                 </div>
+
+                <button
+                  onClick={handleApply}
+                  disabled={redirecting}
+                  className="w-full py-3 sm:py-4 bg-gradient-to-l from-emerald-600 to-teal-600 text-white rounded-xl font-bold text-base sm:text-lg hover:shadow-xl hover:shadow-emerald-200 transition-all hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {redirecting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      جاري التحويل...
+                    </>
+                  ) : (
+                    <>
+                      تأكيد التقديم
+                      <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </>
+                  )}
+                </button>
+
+                <p className="text-center text-xs text-slate-400 mt-4">
+                  سيتم تحويلك مباشرة لإكمال طلب التقديم
+                </p>
               </div>
             </div>
           </div>
@@ -440,7 +316,7 @@ export default function App() {
             <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
               <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <span className="text-base sm:text-lg font-bold text-white">وظائف السعودية</span>
+            <span className="text-base sm:text-lg font-bold text-white">وظائف شركات المراعي</span>
           </div>
           <p className="text-xs sm:text-sm">فرص عمل للمواطنين السعوديين والمقيمين في المملكة العربية السعودية</p>
           <p className="text-xs mt-3 sm:mt-4 text-slate-600">© 2026 جميع الحقوق محفوظة</p>
