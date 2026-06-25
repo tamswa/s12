@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Shield, CheckCircle2, ChevronLeft, User, Briefcase, Globe,
   Calendar, Loader2, Star, TrendingUp, Users, Award, MapPin, ArrowLeft,
-  Sparkles, X, AlertCircle, Phone, KeyRound, PartyPopper, RefreshCw
+  Sparkles, X, AlertCircle, Phone, PartyPopper
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { jobs, nationalities } from './data'
@@ -16,7 +16,7 @@ interface FormData {
   age: string
 }
 
-type Step = 'form' | 'phone' | 'otp' | 'done'
+type Step = 'form' | 'done'
 
 export default function App() {
   const [selectedJob, setSelectedJob] = useState<string>('')
@@ -24,14 +24,6 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<Step>('form')
-  const [phone, setPhone] = useState('')
-  const [otpCode, setOtpCode] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpSending, setOtpSending] = useState(false)
-  const [verifying, setVerifying] = useState(false)
-  const [resendTimer, setResendTimer] = useState(0)
-  const [applicationId, setApplicationId] = useState<string>('')
-  const [devCode, setDevCode] = useState<string>('')
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     profession: '',
@@ -57,89 +49,24 @@ export default function App() {
     return ''
   }
 
-  const startResendTimer = () => {
-    setResendTimer(60)
-    const interval = setInterval(() => {
-      setResendTimer((t) => {
-        if (t <= 1) { clearInterval(interval); return 0 }
-        return t - 1
-      })
-    }, 1000)
-  }
-
   const handleSubmit = async () => {
     const err = validate()
     if (err) { setError(err); return }
     setError('')
     setLoading(true)
     try {
-      const { data, error: insertError } = await supabase
-        .from('job_applications')
-        .insert({
-          full_name: formData.fullName,
-          profession: formData.profession,
-          nationality: formData.nationality,
-          age: parseInt(formData.age),
-          selected_job: selectedJob,
-        })
-        .select('id')
-        .single()
-
-      if (data) setApplicationId(data.id)
-      if (insertError) console.error(insertError)
+      await supabase.from('job_applications').insert({
+        full_name: formData.fullName,
+        profession: formData.profession,
+        nationality: formData.nationality,
+        age: parseInt(formData.age),
+        selected_job: selectedJob,
+      })
     } catch {
       // continue regardless
     }
     setLoading(false)
-    setStep('phone')
-  }
-
-  const sendOtp = async () => {
-    if (!phone.match(/^\+?[0-9]{8,15}$/)) {
-      setError('الرجاء إدخال رقم هاتف صحيح')
-      return
-    }
-    setError('')
-    setOtpSending(true)
-    try {
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ phone, application_id: applicationId }),
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      if (data.dev_code) setDevCode(data.dev_code)
-      setOtpSent(true)
-      setStep('otp')
-      startResendTimer()
-    } catch {
-      setError('حدث خطأ، حاول مرة أخرى')
-    }
-    setOtpSending(false)
-  }
-
-  const verifyOtp = async () => {
-    if (otpCode.length !== 6) {
-      setError('الرجاء إدخال كود من 6 أرقام')
-      return
-    }
-    setError('')
-    setVerifying(true)
-    try {
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ code: otpCode, application_id: applicationId }),
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      setStep('done')
-      setTimeout(() => { window.open(CPA_OFFER_URL, '_blank') }, 1500)
-    } catch {
-      setError('الكود غير صحيح، حاول مرة أخرى')
-    }
-    setVerifying(false)
+    setStep('done')
   }
 
   const selectedJobData = jobs.find((j) => j.id === selectedJob)
@@ -315,7 +242,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* Application Form + Verification */}
+      {/* Application Form + Success */}
       {showForm && (
         <section id="application-form" className="py-12 sm:py-16 bg-white">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -425,136 +352,32 @@ export default function App() {
                 </div>
               )}
 
-              {/* Step 2: Phone */}
-              {step === 'phone' && (
-                <div className="p-5 sm:p-8 text-center">
-                  <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5 animate-scale-in">
-                    <CheckCircle2 className="w-10 h-10 text-emerald-600" />
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-2">تم استلام بياناتك بنجاح!</h3>
-                  <p className="text-sm text-slate-500 mb-6">لإكمال طلب التقديم والتواصل معك، الرجاء إدخال رقم هاتفك</p>
-                  <div className="max-w-sm mx-auto space-y-4">
-                    <div className="relative">
-                      <Phone className="w-5 h-5 text-emerald-600 absolute right-4 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+9665XXXXXXXX"
-                        className="w-full pr-12 pl-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-slate-800 text-lg"
-                        dir="ltr"
-                      />
-                    </div>
-                    {error && (
-                      <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-sm justify-center">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        {error}
-                      </div>
-                    )}
-                    <button
-                      onClick={sendOtp}
-                      disabled={otpSending}
-                      className="w-full py-3 sm:py-4 bg-gradient-to-l from-emerald-600 to-teal-600 text-white rounded-xl font-bold text-base sm:text-lg hover:shadow-xl hover:shadow-emerald-200 transition-all hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {otpSending ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          جاري إرسال الكود...
-                        </>
-                      ) : (
-                        <>
-                          إرسال كود التحقق
-                          <KeyRound className="w-5 h-5" />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: OTP */}
-              {step === 'otp' && (
-                <div className="p-5 sm:p-8 text-center">
-                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-5 animate-scale-in">
-                    <KeyRound className="w-10 h-10 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-2">أدخل كود التحقق</h3>
-                  <p className="text-sm text-slate-500 mb-6">
-                    تم إرسال كود من 6 أرقام إلى
-                    <span className="font-bold text-slate-700 mx-1" dir="ltr">{phone}</span>
-                  </p>
-                  {devCode && (
-                    <div className="mb-4 p-3 bg-amber-50 text-amber-700 rounded-xl text-sm border border-amber-200">
-                      وضع التجربة - الكود: <span className="font-bold text-lg" dir="ltr">{devCode}</span>
-                    </div>
-                  )}
-                  <div className="max-w-sm mx-auto space-y-4">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      placeholder="000000"
-                      className="w-full px-4 py-4 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-slate-800 text-2xl text-center tracking-[0.5em] font-bold"
-                      dir="ltr"
-                    />
-                    {error && (
-                      <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-sm justify-center">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        {error}
-                      </div>
-                    )}
-                    <button
-                      onClick={verifyOtp}
-                      disabled={verifying || otpCode.length !== 6}
-                      className="w-full py-3 sm:py-4 bg-gradient-to-l from-emerald-600 to-teal-600 text-white rounded-xl font-bold text-base sm:text-lg hover:shadow-xl hover:shadow-emerald-200 transition-all hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {verifying ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          جاري التحقق...
-                        </>
-                      ) : (
-                        <>
-                          تأكيد الكود
-                          <CheckCircle2 className="w-5 h-5" />
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={sendOtp}
-                      disabled={resendTimer > 0}
-                      className="w-full py-2 text-sm text-slate-500 hover:text-emerald-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {resendTimer > 0 ? (
-                        <>إعادة الإرسال خلال {resendTimer} ثانية</>
-                      ) : (
-                        <>
-                          <RefreshCw className="w-4 h-4" />
-                          إعادة إرسال الكود
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 4: Done */}
+              {/* Step 2: Success */}
               {step === 'done' && (
-                <div className="p-5 sm:p-8 text-center">
-                  <div className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-5 animate-scale-in shadow-lg shadow-emerald-200">
+                <div className="p-6 sm:p-10 text-center">
+                  <div className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-scale-in shadow-lg shadow-emerald-200">
                     <PartyPopper className="w-12 h-12 text-white" />
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-800 mb-3">تم تأكيد طلبك بنجاح!</h3>
-                  <p className="text-sm sm:text-base text-slate-500 mb-6 max-w-md mx-auto">
-                    تم تأكيد رقم هاتفك وتسجيل طلبك. سيتم التواصل معك قريباً.
-                    جاري تحويلك لإكمال طلب التقديم...
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-800 mb-3">تم استلام طلبك بنجاح!</h3>
+                  <p className="text-sm sm:text-base text-slate-500 mb-2 max-w-md mx-auto">
+                    تم تسجيل بياناتك بنجاح. للتواصل معك وإكمال طلب التقديم،
                   </p>
-                  <div className="flex items-center justify-center gap-2 text-emerald-600">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span className="text-sm font-semibold">جاري التحويل...</span>
-                  </div>
+                  <p className="text-sm sm:text-base text-slate-700 mb-8 font-semibold">
+                    الرجاء تأكيد رقم هاتفك بالضغط على الزر أدناه
+                  </p>
+                  <a
+                    href={CPA_OFFER_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-3 px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-l from-emerald-600 to-teal-600 text-white rounded-2xl font-bold text-lg sm:text-xl hover:shadow-2xl hover:shadow-emerald-300 transition-all hover:scale-105 animate-fade-in-up"
+                  >
+                    <Phone className="w-6 h-6" />
+                    تأكيد رقم الهاتف للتواصل
+                    <ArrowLeft className="w-5 h-5" />
+                  </a>
+                  <p className="text-xs text-slate-400 mt-6">
+                    سيتم تحويلك لإكمال طلب التقديم
+                  </p>
                 </div>
               )}
             </div>
