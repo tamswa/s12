@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // التعديل هنا: تحديد المسار الأساسي ليناسب مجلد s12 على GitHub Pages
-  base: '/s12/', 
+  // للنشر على Vercel أو نطاق مخصص، اترك base كـ '/'
+  // للنشر على GitHub Pages، غيّر إلى '/s12/'
+  base: '/', 
   build: {
     target: 'es2015',
     cssCodeSplit: false,
